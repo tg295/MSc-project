@@ -1,4 +1,4 @@
-# MSc-final thesis
+# MSc-Final Project
 Computational models of peripheral nerve fibres (specifically axons) for conduction block - constructed in the NEURON simulation environment. 
 
 # Final Models 
