@@ -1,0 +1,54 @@
+// C-fibre axon model (Channels taken from Tigerholm et AL (2015))
+
+create axon
+access axon
+
+axon {
+  nseg = 36 // 9mm long axon divided into 0.25mm segments
+  diam = 2	//um
+  L = 9e3 //um 5cm
+  Ra = 35.4 //Ohm-cm
+  cm = 1
+  insert extracellular xraxial=1e+09 xg=1e+09 xc=0 e_extracellular=0
+  insert pas
+
+  //Ion diffusion
+  insert nadifl
+  insert kdifl
+  insert kacc
+  insert naext
+
+  //Sodium channels
+  insert nav1p7
+  insert nav1p8
+  insert nav1p9
+  //Potassium channels
+  insert kdr
+  insert ka
+  insert km
+  insert knatype
+  //HCN
+  insert hcn
+  //Sodium/Potassium pump
+  insert NaKpump
+}
+
+forall {
+  insert xtra
+  for (x,0) {
+    setpointer ex_xtra(x), e_extracellular(x)
+   setpointer im_xtra(x), i_membrane(x)
+  }
+}
+
+// Initial ion concentrations
+ki0_k_ion=121.7 //int. K+ conc.
+ko0_k_ion=5.6 //ext. K+ conc.
+ks0_k_ion=5.6 //periaxonal K+ conc.
+nai0_na_ion=11.4 //int. Na+ conc.
+nao0_na_ion=154 //ext. Na+ conc.
+nas0_na_ion=154 //periaxonal Na+ conc.
+
+celsius = 37
+
+define_shape()

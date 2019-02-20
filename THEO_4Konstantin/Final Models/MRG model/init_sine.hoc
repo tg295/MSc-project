@@ -1,0 +1,742 @@
+/////// MRG model for SINUSOIDAL waveform AC stimulation /////
+
+/*--------------------------------------------------------------------
+2/02
+Cameron C. McIntyre
+SIMULATION OF PNS MYELINATED AXON
+
+This model is described in detail in:
+
+McIntyre CC, Richardson AG, and Grill WM. Modeling the excitability of
+mammalian nerve fibers: influence of afterpotentials on the recovery
+cycle. Journal of Neurophysiology 87:995-1006, 2002.
+
+This model can not be used with NEURON v5.1 as errors in the
+extracellular mechanism of v5.1 exist related to xc. The original
+stimulations were run on v4.3.1. NEURON v5.2 has corrected the
+limitations in v5.1 and can be used to run this model.
+----------------------------------------------------------------------*/
+
+load_file("nrngui.hoc")
+
+RHOE = 300
+
+proc model_globels() {
+	celsius=37
+	v_init=-80 //mV//
+	dt=0.005
+	timestep = dt //ms//
+  tinit = 0
+	tstop= 50
+	tfinal = tstop
+
+/////////Test pulse parameters////////
+	stim_delay = 35		//ms
+	stim_amp = 15 //mA
+	stim_dur = 0.12 //Stimulation duration 0.12 ms
+
+/////////Blocking parameters////////////
+	// //SINE
+	acfreq = 5000 //Hz
+	acamp = -1.0 //mA
+	acdur = 40 //ms
+	acdel = 5 //ms
+	acn = 1000000
+
+/////////topological parameters////////
+	axonnodes=36
+	paranodes1=70
+	paranodes2=70
+	axoninter=35
+	axontotal=211
+//////////morphological parameters//////
+	fiberD=5.7	//choose from 5.7, 7.3, 8.7, 10.0, 11.5, 12.8, 14.0, 15.0, 16.0
+	paralength1=3
+	nodelength=1.0
+	space_p1=0.002
+	space_p2=0.004
+	space_i=0.004
+/////////electrical parameters////////
+	rhoa=0.7e6 //Ohm-um//
+	mycm=0.1 //uF/cm2/lamella membrane//
+	mygm=0.001 //S/cm2/lamella membrane//
+	membrane_cap_node = 2
+	}
+model_globels ()
+
+///////Template axon Specification////////
+nb_section_per_template=6
+objref template[nb_section_per_template]
+for i=0, nb_section_per_template-1 template[i]=new String()
+template[0].s="node"
+template[1].s="mysa"
+template[2].s="flut"
+template[3].s="stin"
+// template[4].s="stin"
+// template[5].s="stin"
+// template[6].s="stin"
+// template[7].s="stin"
+// template[8].s="stin"
+template[4].s="flut"
+template[5].s="mysa"
+
+
+	proc dependent_var() {
+		if (fiberD==5.7) {g=0.605 axonD=3.4 nodeD=1.9 paraD1=1.9 paraD2=3.4 deltax=500 paralength2=35 nl=80}
+		if (fiberD==7.3) {g=0.630 axonD=4.6 nodeD=2.4 paraD1=2.4 paraD2=4.6 deltax=750 paralength2=38 nl=100}
+		if (fiberD==8.7) {g=0.661 axonD=5.8 nodeD=2.8 paraD1=2.8 paraD2=5.8 deltax=1000 paralength2=40 nl=110}
+		if (fiberD==10.0) {g=0.690 axonD=6.9 nodeD=3.3 paraD1=3.3 paraD2=6.9 deltax=1150 paralength2=46 nl=120}
+		if (fiberD==11.5) {g=0.700 axonD=8.1 nodeD=3.7 paraD1=3.7 paraD2=8.1 deltax=1250 paralength2=50 nl=130}
+		if (fiberD==12.8) {g=0.719 axonD=9.2 nodeD=4.2 paraD1=4.2 paraD2=9.2 deltax=1350 paralength2=54 nl=135}
+		if (fiberD==14.0) {g=0.739 axonD=10.4 nodeD=4.7 paraD1=4.7 paraD2=10.4 deltax=1400 paralength2=56 nl=140}
+		if (fiberD==15.0) {g=0.767 axonD=11.5 nodeD=5.0 paraD1=5.0 paraD2=11.5 deltax=1450 paralength2=58 nl=145}
+		if (fiberD==16.0) {g=0.791 axonD=12.7 nodeD=5.5 paraD1=5.5 paraD2=12.7 deltax=1500 paralength2=60 nl=150}
+		Rpn0=(rhoa*.01)/(PI*((((nodeD/2)+space_p1)^2)-((nodeD/2)^2)))
+		Rpn1=(rhoa*.01)/(PI*((((paraD1/2)+space_p1)^2)-((paraD1/2)^2)))
+		Rpn2=(rhoa*.01)/(PI*((((paraD2/2)+space_p2)^2)-((paraD2/2)^2)))
+		Rpx=(rhoa*.01)/(PI*((((axonD/2)+space_i)^2)-((axonD/2)^2)))
+		// interlength=(deltax-nodelength-(2*paralength1)-(2*paralength2))/6 //for 6 stin
+		interlength=(deltax-nodelength-(2*paralength1)-(2*paralength2))
+		total_section_number = (axonnodes-1)*nb_section_per_template+1
+		total_length = (axonnodes-1)*deltax
+		}
+
+//create node[axonnodes], MYSA[paranodes1], FLUT[paranodes2], STIN[axoninter]
+//access node[0]	//APD
+create sections[1]
+//Create axon sections to be specified as node, paranode and internode segments.
+objectvar stim
+
+proc specify_sections() {
+ 	create sections[total_section_number]
+	access sections[0]
+	for node=0, (axonnodes-2) {
+
+		for template_section=0,(nb_section_per_template-1){
+
+			if (strcmp(template[template_section].s, "node")==0){
+
+				sections[nb_section_per_template*node+template_section] { //NODE
+					nseg=1
+					diam=nodeD
+					L=nodelength
+					Ra=rhoa/10000
+					// cm=2
+					cm=membrane_cap_node
+					insert axnode
+					insert extracellular xraxial=Rpn0 xg=1e10 xc=0
+					// insert xtra
+					// for (x,0) {
+					// 	setpointer ex_xtra(x), e_extracellular(x)
+					// 	setpointer im_xtra(x), i_membrane(x)
+					// }
+					gl_axnode = 0
+					gnapbar_axnode = 0
+				}
+			}
+
+			if (strcmp(template[template_section].s, "mysa")==0){
+
+				sections[nb_section_per_template*node+template_section] { //MYSA
+					nseg=1
+					diam=fiberD
+					L=paralength1
+					Ra=rhoa*(1/(paraD1/fiberD)^2)/10000
+					cm=membrane_cap_node*paraD1/fiberD
+					insert pas
+					g_pas=0.001*paraD1/fiberD
+					e_pas=-80
+					insert extracellular xraxial=Rpn1 xg=mygm/(nl*2) xc=mycm/(nl*2)
+					// insert xtra
+					// for (x,0) {
+					// 	setpointer ex_xtra(x), e_extracellular(x)
+					// 	setpointer im_xtra(x), i_membrane(x)
+					// }
+				}
+			}
+
+			if (strcmp(template[template_section].s, "flut")==0){
+
+				sections[nb_section_per_template*node+template_section] { //FLUT
+					nseg=2
+					diam=fiberD
+					L=paralength2
+					Ra=rhoa*(1/(paraD2/fiberD)^2)/10000
+					cm=membrane_cap_node*paraD2/fiberD
+					insert pas
+					g_pas=0.0001*paraD2/fiberD
+					e_pas=-80
+					insert extracellular xraxial=Rpn2 xg=mygm/(nl*2) xc=mycm/(nl*2)
+					// insert xtra
+					// for (x,0) {
+					// 	setpointer ex_xtra(x), e_extracellular(x)
+					// 	setpointer im_xtra(x), i_membrane(x)
+					// }
+				}
+			}
+
+			if (strcmp(template[template_section].s, "stin")==0){
+
+				sections[nb_section_per_template*node+template_section] { //STIN
+					nseg=6
+					diam=fiberD
+					L=interlength
+					Ra=rhoa*(1/(axonD/fiberD)^2)/10000
+					cm=membrane_cap_node*axonD/fiberD
+					insert pas
+					g_pas=0.0001*axonD/fiberD
+					e_pas=-80
+					insert extracellular xraxial=Rpx xg=mygm/(nl*2) xc=mycm/(nl*2)
+					// insert xtra
+					// for (x,0) {
+					// 	setpointer ex_xtra(x), e_extracellular(x)
+					// 	setpointer im_xtra(x), i_membrane(x)
+					// }
+				}
+			}
+		}
+	}
+	sections[total_section_number-1] { //LAST NODE
+		nseg=1
+		diam=nodeD
+		L=nodelength
+		Ra=rhoa/10000
+		cm=membrane_cap_node
+		insert axnode
+		insert extracellular xraxial=Rpn0 xg=1e10 xc=0
+		// insert xtra
+		// for (x,0) {
+		// 	setpointer ex_xtra(x), e_extracellular(x)
+		// 	setpointer im_xtra(x), i_membrane(x)
+		// }
+	}
+}
+
+// Axon Assembly
+proc assemble_axons() {
+
+	//Assembly of mammalian myelinated axon: NODE-MYSA-FLUT-STIN-STIN-STIN-STIN-STIN-STIN-FLUT-MYSA...
+	for i=0, total_section_number-2 {
+	connect sections[i+1](0),sections[i](1)
+	}
+
+}
+
+////// Intracellular stim (Test pulse)/////
+proc stimul() {
+	sections[12]{
+		stim=new IClamp()
+		stim.loc(.5)
+		stim.del=stim_delay
+		stim.dur=stim_dur
+		stim.amp=stim_amp
+		}
+}
+
+//// Insert xtra /////
+proc insertxtra(){
+  forall {
+    insert xtra
+    for (x,0) {
+      setpointer ex_xtra(x), e_extracellular(x)
+     setpointer im_xtra(x), i_membrane(x)
+    }
+  }
+}
+
+//// Axon initialisation proc ///////
+proc axoninit() {
+  dependent_var()
+  specify_sections()
+  assemble_axons()
+	insertxtra()
+	define_shape()
+	stimul()
+}
+
+axoninit()
+
+////// APCounters for spike times for cond.vel //////
+proc connectAPcounters() { local i localobj tmpapc, tmpstv
+  $o1 = new List()
+  $o2 = new List()
+  for node=0, (axonnodes-1) { //looking just at nodes
+    sections[nb_section_per_template*node] {
+    tmpapc = new APCount(0.5)
+    tmpapc.thresh = -0
+    tmpstv = new Vector()
+    tmpapc.record(tmpstv)
+    $o1.append(tmpapc)
+    $o2.append(tmpstv)
+  }
+  }
+}
+
+objref apclist, stvlist
+apclist = new List()
+stvlist = new List()
+
+forall connectAPcounters(apclist, stvlist)
+
+//First compute xyz coordinates of nodes
+load_file("interpxyz.hoc")
+
+grindaway()
+//location of electrode
+XE = total_length/2 // um
+YE = 1000
+ZE = 0
+
+//calculate transfer resistance, rx, between electrode and local node
+proc setrx() {  // now expects xyz coords as arguments
+  forall {
+    if (ismembrane("xtra")) {
+// avoid nodes at 0 and 1 ends, so as not to override values at internal nodes
+      for (x,0) {
+        r = sqrt((x_xtra(x) - xe)^2 + (y_xtra(x) - ye)^2 + (z_xtra(x) - ze)^2)
+//        r = sqrt((x_xtra(x) - $1)^2 + (y_xtra(x) - $2)^2 + (z_xtra(x) - $3)^2)
+        // 0.01 converts rho's cm to um and ohm to megohm
+        // if electrode is exactly at a node, r will be 0
+        // this would be meaningless since the location would be inside the cell
+        // so force r to be at least as big as local radius
+        if (r==0) r = diam(x)/2
+        rx_xtra(x) = (RHOE / 4 / PI)*(1/r)*0.01
+      }
+    }
+  }
+}
+
+create sElec  // bogus section to show extracell stim/rec electrode location
+proc put_sElec() {
+	sElec {
+		// make it 1 um long
+		pt3dclear()
+		pt3dadd($1-0.5, $2, $3, 1)
+		pt3dadd($1+0.5, $2, $3, 1)
+	}
+}
+put_sElec(XE, YE, ZE)
+
+proc setelec() {
+	xe = $1
+	ye = $2
+	ze = $3
+	setrx(xe, ye, ze)
+	put_sElec(xe, ye, ze)
+}
+
+// setrx(50, 0, 0)  // put stim electrode at (x, y, z)
+
+setelec(XE, YE, ZE)  // put stim electrode at (x, y, z)
+
+//create stimulus wavefrom
+//SINE
+objref fsin
+proc acvectinit() {
+
+dur = 30
+sections[102] fsin = new Fsin(0.5) //sine wave generator
+fsin.f = acfreq //Hz
+fsin.amp = acamp //mA
+fsin.del = acdel//ms
+fsin.n = acn
+setpointer fsin.x, is_xtra
+}
+
+acvectinit()
+
+//// Ext.stim initialisation proc /////
+proc init_all(){
+//   define_shape()
+  stimul()
+  connectAPcounters(apclist, stvlist)
+  grindaway()
+  setelec(XE, YE, ZE)
+  acvectinit()
+}
+
+/////// Graphical User Interface ////////
+
+objectvar graph_1, graph_2, graph_3, rvp_, plot_1, plot_2, row_1, row_2, row_3, col_1, gElec, pElec
+objectvar scene_vector_[7] //, deck
+objectvar ocbox_, ocbox_list_, scene_, scene_list_
+{ocbox_list_ = new List()  scene_list_ = new List()}
+{pwman_place(0,0,0)}
+
+row_1 = new HBox(3,0)
+col_1 = new VBox(3,0) //
+row_2 = new HBox(3,0)
+row_3 = new HBox(3,0)
+// deck =  new Deck()
+
+proc update_graph(){
+	sections[0] $o1.begin(0)
+	sections[total_section_number-1] $o1.end(1)
+	$o1.origin(0)
+}
+
+col_1.intercept(1)
+// deck.intercept(1)
+row_1.intercept(1)
+{
+graph_1 = new Graph(0)
+graph_1.label(0.4,0.90,"Membrane voltage")
+graph_1.size(0,total_length,-80,40)
+scene_vector_[3] = graph_1
+{graph_1.view(0, -80, total_length, 120, 0, 462, 300.6, 200.8)}
+flush_list.append(graph_1)
+graph_1.save_name("flush_list.")
+plot_1 = new RangeVarPlot("v")
+update_graph(plot_1)
+graph_1.addobject(plot_1, 2, 1, 0.8, 0.9)
+flush_list.append(graph_1)
+}
+
+{
+graph_2 = new Graph(0)
+graph_2.label(0.4,0.90,"Extracellular voltage")
+graph_2.size(0,total_length,-2000,2000)
+scene_vector_[4] = graph_2
+{graph_2.view(0, -2000, total_length, 4000, 414, 126, 300.6, 200.8)}
+flush_list.append(graph_2)
+graph_2.save_name("flush_list.")
+plot_2 = new RangeVarPlot("e_extracellular")
+update_graph(plot_2)
+graph_2.addobject(plot_2, 2, 1, 0.8, 0.9)
+flush_list.append(graph_2)
+row_1.intercept(0)
+row_1.map()
+// deck.intercept(0)
+// deck.flip_to(0)
+// deck.map()
+}
+
+// deck.intercept(1)
+row_1.intercept(1)
+{
+graph_3 = new Graph(0)
+graph_3.label(0.4,0.90, "Action potential")
+graph_3.size(0,50,-80,40)
+scene_vector_[2] = graph_3
+{graph_3.view(0, -80, 50, 120, 0, 126, 300.6, 200.8)}
+graphList[0].append(graph_3)
+graph_3.save_name("graphList[0].")
+graph_3.addexpr("sections[102].v(0.5)", 4, 1, 0.8, 0.9, 2)
+graph_3.addexpr("sections[174].v(0.5)", 3, 1, 0.8, 0.9, 2)
+graph_3.addvar("sections[18].v(0.5)", 2, 1, 0.8, 0.9, 2)
+
+
+}
+
+row_1.intercept(0)
+// deck.intercept(0)
+
+row_2.intercept(1)
+
+{
+xpanel("RunControl", 0)
+xlabel("Simulation Settings")
+	// v_init = -80
+	xvalue("Init","v_init", 1,"fcurrent()",0)
+	xbutton("Init & Run","  	run() ")
+	xbutton("Stop","stoprun=1")
+	// runStopAt = 5
+	// xvalue("Continue til","runStopAt", 1,"{continuerun(runStopAt) stoprun=1}", 1, 1 )
+	// runStopIn = 1
+	// xvalue("Continue for","runStopIn", 1,"{continuerun(t + runStopIn) stoprun=1}", 1, 1 )
+	// xbutton("Single Step","steprun()")
+	t = tinit
+	xvalue("t","t", 2 )
+	tstop = tfinal
+	xvalue("Tstop","tstop", 1,"tstop_changed()", 0, 1 )
+	dt = timestep
+	xvalue("dt","dt", 1,"setdt()", 0, 1 )
+	//dt = timestep
+	//steps_per_ms = 200
+	xvalue("Points plotted/ms","steps_per_ms", 1,"setdt()", 0, 1 )
+	screen_update_invl = 0.05
+	xvalue("Scrn update invl","screen_update_invl", 1,"", 0, 1 )
+	realtime = 0
+	xvalue("Real Time","realtime", 0,"", 0, 1 )
+xpanel()
+}
+
+{
+xpanel("AC Stim Settings",0)
+  xlabel("AC Stim Settings: SINE")
+  xvalue("AC amplitude (mA)","fsin.amp",1)
+  xvalue("AC frequency (Hz)","fsin.f",1)
+  xvalue("AC delay (ms)","fsin.del",1)
+  xvalue("AC duration (ms)","dur",1)
+  xvalue("AC no. of cycles", "fsin.n", 1)
+  xlabel("DC Stim Settings")
+xvalue("DC stimulus amplitude (mA)","stim_amp",1,"stimul()")
+xvalue("DC stimulus delay (ms)","stim_delay",1,"stimul()")
+xvalue("DC stimulus duration (ms)","stim_dur",1,"stimul()")
+  // xpanel(1200,200)
+  xpanel()
+}
+
+{
+xpanel("Extracellular Electrode Location", 0)
+xlabel("AC Electrode Location (um)")
+XE = total_length/2
+xvalue("x","XE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+YE = 1000
+xvalue("y","YE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+ZE = 0
+xvalue("z","ZE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+// xpanel(830,463)
+  // xlabel("Axon Geometry")
+  // xvalue("nseg", "nseg",1)
+  // xvalue("Diameter (um)", "diam",1)
+  // xvalue("Total length (um)", "L",1)
+// xpanel("blah blah blah", 0)
+  xbutton("Export results", "export_results()")
+  xbutton("Run & export spike times", "runcount()")
+  xpanel()
+}
+
+{
+gElec = new Shape(0)  // create it but don't map it to the screen yet
+gElec.view(-245.413, -250, 10000, 520, 824, 123, 201.6, 201.28)
+// objref pElec  // bogus PointProcess just to show stim location
+sElec pElec = new PointProcessMark(0.5) // middle of sElec
+gElec.point_mark(pElec, 2) // make it red
+}
+
+row_2.intercept(0)
+row_2.map()
+
+col_1.intercept(0)
+col_1.map()
+
+objectvar scene_vector_[1]
+{doNotify()}
+
+// Export results for all nodes .
+proc export_results() {
+  finitialize(v_init)
+  fcurrent()
+  batch_save()
+  strdef filename, headers
+  sprint(headers, "dt %f\ntfinal %f\nfsin.f %1.f\nfsin.amp %.1f\nfiberD %f\nL %f\nstim_amp %f\nno.nodes %f", dt, tfinal, fsin.f, fsin.amp, fiberD, total_length, stim_amp, axonnodes)
+  sprint(filename, "D:/Thesis/data/MRG model/Sine/5.7um/1mm IED/%d_Hz_%.1f_mA.txt", fsin.f, fsin.amp)
+  batch_save()
+	for node=0, (axonnodes-1) { //looking just at nodes
+    batch_save(&sections[nb_section_per_template*node].v(0.5),&sections[nb_section_per_template*node].e_extracellular(0.5),&sections[nb_section_per_template*node].m_axnode(0.5),&sections[nb_section_per_template*node].s_axnode(0.5),&sections[nb_section_per_template*node].h_axnode(0.5),&sections[nb_section_per_template*node].mp_axnode(0.5),&sections[nb_section_per_template*node].tau_m_axnode(0.5),&sections[nb_section_per_template*node].tau_mp_axnode(0.5),&sections[nb_section_per_template*node].tau_h_axnode(0.5),&sections[nb_section_per_template*node].tau_s_axnode(0.5),&sections[nb_section_per_template*node].ina_axnode(0.5),&sections[nb_section_per_template*node].ik_axnode(0.5),&sections[nb_section_per_template*node].inap_axnode(0.5),&sections[nb_section_per_template*node].il_axnode(0.5),&sections[nb_section_per_template*node].i_cap(0.5))
+}
+  batch_run(tstop, dt, filename, headers)
+}
+
+// Export spike times to matlab for calculation of conduction velocity
+proc runcount(){ localobj savedata
+run()
+strdef file_name
+sprint(file_name, "D:/Thesis/data/MRG model/Sine/5.7um/1mm IED/%d_Hz_%.1f_mA_ST.txt", fsin.f, fsin.amp)
+savedata = new File()
+savedata.wopen(file_name)
+for i=0,stvlist.count()-1{
+  print "spike times at internal node ", i
+  stvlist.o(i).printf
+  stvlist.o(i).printf(savedata)
+}
+savedata.close()
+}
+
+// /////// BATCH RUN SIMULATION ////////
+//
+// objref Frequencies, mA_amplitudes
+//
+// Frequencies = new Vector()
+// mA_amplitudes = new Vector()
+//
+// proc freq(){
+//     Frequencies.append(1000)
+//     Frequencies.append(2000)
+//     Frequencies.append(3000)
+//     Frequencies.append(4000)
+//     Frequencies.append(5000)
+//     Frequencies.append(6000)
+//     Frequencies.append(7000)
+//     Frequencies.append(8000)
+//     Frequencies.append(9000)
+//     Frequencies.append(10000)
+//     Frequencies.append(11000)
+//     Frequencies.append(12000)
+//     Frequencies.append(13000)
+//     Frequencies.append(14000)
+//     Frequencies.append(15000)
+//     Frequencies.append(16000)
+//     Frequencies.append(17000)
+//     Frequencies.append(18000)
+//     Frequencies.append(19000)
+//     Frequencies.append(20000)
+//     Frequencies.append(21000)
+//     Frequencies.append(22000)
+//     Frequencies.append(23000)
+//     Frequencies.append(24000)
+//     Frequencies.append(25000)
+//     Frequencies.append(26000)
+//     Frequencies.append(27000)
+//     Frequencies.append(28000)
+//     Frequencies.append(29000)
+//     Frequencies.append(30000)
+//     Frequencies.append(31000)
+//     Frequencies.append(32000)
+//     Frequencies.append(33000)
+//     Frequencies.append(34000)
+//     Frequencies.append(35000)
+//     Frequencies.append(36000)
+//     Frequencies.append(37000)
+//     Frequencies.append(38000)
+//     Frequencies.append(39000)
+//     Frequencies.append(40000)
+// }
+//
+// proc amp(){
+//   mA_amplitudes.append(-0.1)
+// 	mA_amplitudes.append(-0.2)
+// 	mA_amplitudes.append(-0.3)
+// 	mA_amplitudes.append(-0.4)
+// 	mA_amplitudes.append(-0.5)
+// 	mA_amplitudes.append(-0.6)
+// 	mA_amplitudes.append(-0.7)
+// 	mA_amplitudes.append(-0.8)
+// 	mA_amplitudes.append(-0.9)
+// 	mA_amplitudes.append(-1.0)
+// 	mA_amplitudes.append(-1.1)
+// 	mA_amplitudes.append(-1.2)
+// 	mA_amplitudes.append(-1.3)
+// 	mA_amplitudes.append(-1.4)
+// 	mA_amplitudes.append(-1.5)
+// 	mA_amplitudes.append(-1.6)
+// 	mA_amplitudes.append(-1.7)
+// 	mA_amplitudes.append(-1.8)
+// 	mA_amplitudes.append(-1.9)
+// 	mA_amplitudes.append(-2.0)
+// 	mA_amplitudes.append(-2.1)
+// 	mA_amplitudes.append(-2.2)
+// 	mA_amplitudes.append(-2.3)
+// 	mA_amplitudes.append(-2.4)
+// 	mA_amplitudes.append(-2.5)
+// 	mA_amplitudes.append(-2.6)
+// 	mA_amplitudes.append(-2.7)
+// 	mA_amplitudes.append(-2.8)
+// 	mA_amplitudes.append(-2.9)
+// 	mA_amplitudes.append(-3.0)
+// 	// mA_amplitudes.append(-3.2)
+// 	// mA_amplitudes.append(-3.6)
+// 	// mA_amplitudes.append(-4.0)
+// 	// mA_amplitudes.append(-4.4)
+// 	// mA_amplitudes.append(-4.8)
+// 	// mA_amplitudes.append(-5.2)
+// 	// mA_amplitudes.append(-5.6)
+// 	// mA_amplitudes.append(-6.0)
+// 	// mA_amplitudes.append(-6.4)
+// 	// mA_amplitudes.append(-6.8)
+// 	// mA_amplitudes.append(-7.2)
+// 	// mA_amplitudes.append(-7.6)
+// 	// mA_amplitudes.append(-8.0)
+// 	// mA_amplitudes.append(-8.4)
+// 	// mA_amplitudes.append(-8.8)
+// 	// mA_amplitudes.append(-9.2)
+// 	// mA_amplitudes.append(-9.6)
+// 	// mA_amplitudes.append(-10.0)
+//
+// 	// mA_amplitudes.append(-1.0)
+// 	// mA_amplitudes.append(-2.0)
+// 	// mA_amplitudes.append(-3.0)
+// 	// mA_amplitudes.append(-4.0)
+// 	// mA_amplitudes.append(-5.0)
+// 	// mA_amplitudes.append(-6.0)
+// 	// mA_amplitudes.append(-7.0)
+// 	// mA_amplitudes.append(-8.0)
+// 	// mA_amplitudes.append(-9.0)
+// 	// mA_amplitudes.append(-10.0)
+// 	// mA_amplitudes.append(-11.0)
+// 	// mA_amplitudes.append(-12.0)
+// 	// mA_amplitudes.append(-13.0)
+// 	// mA_amplitudes.append(-14.0)
+// 	// mA_amplitudes.append(-15.0)
+// 	// mA_amplitudes.append(-16.0)
+// 	// mA_amplitudes.append(-17.0)
+// 	// mA_amplitudes.append(-18.0)
+// 	// mA_amplitudes.append(-19.0)
+// 	// mA_amplitudes.append(-20.0)
+// 	// mA_amplitudes.append(-21.0)
+// 	// mA_amplitudes.append(-22.0)
+// 	// mA_amplitudes.append(-23.0)
+// 	// mA_amplitudes.append(-24.0)
+// 	// mA_amplitudes.append(-25.0)
+// 	// mA_amplitudes.append(-26.0)
+// 	// mA_amplitudes.append(-27.0)
+// 	// mA_amplitudes.append(-28.0)
+// 	// mA_amplitudes.append(-29.0)
+// 	// mA_amplitudes.append(-30.0)
+//
+// 	// mA_amplitudes.append(-32)
+// 	// mA_amplitudes.append(-34)
+// 	// mA_amplitudes.append(-36)
+// 	// mA_amplitudes.append(-38)
+// 	// mA_amplitudes.append(-40)
+// 	// mA_amplitudes.append(-42)
+// 	// mA_amplitudes.append(-44)
+// 	// mA_amplitudes.append(-46)
+// 	// mA_amplitudes.append(-48)
+//   // mA_amplitudes.append(-50)
+//
+//
+// }
+//
+//
+// Frequencies.buffer_size(100)
+// mA_amplitudes.buffer_size(100)
+// amp()
+// freq()
+//
+// for freq_index = 0, Frequencies.size() -1{
+//
+//   for amp_index = 0, mA_amplitudes.size() - 1{
+//
+//     // forall delete_section()
+//     mA_amplitudes.resize(0)
+//     Frequencies.resize(0)
+//
+//     amp()
+//     freq()
+//
+//     init_all()
+// 		// SINE
+//     fsin.f = Frequencies.x[freq_index]
+//     fsin.amp = mA_amplitudes.x[amp_index]
+//     fsin.del = 5
+//     fsin.n = 1000000
+//     print "\nFrequency ", fsin.f, "\nAmplitude ", fsin.amp, "\n"
+//     // stdinit()
+//     finitialize(-80)
+//     fcurrent()
+//     batch_save()
+//     strdef filename, headers
+//     sprint(headers, "dt %f\ntfinal %f\nfsin.f %1.f\nfsin.amp %.1f\nfiberD %f\nL %f\nstim_amp %f\nno.nodes %f", dt, tfinal, fsin.f, fsin.amp, fiberD, total_length, stim_amp, axonnodes)
+//     sprint(filename, "D:/Thesis/data/MRG model/Sine/5.7um/1mm IED/Batch_run 1-40kHz/%d_Hz_%.1f_mA.txt", fsin.f, fsin.amp)
+//     batch_save()
+//     // batch_save(&axon.e_extracellular(0.5))
+//     for node=0, (axonnodes-1) {
+// 		batch_save(&sections[nb_section_per_template*node].v(0.5))
+// 		}
+// 		// batch_save(&sections[nb_section_per_template*17].v(0.5),&sections[nb_section_per_template*17].m_axnode(0.5),&sections[nb_section_per_template*17].s_axnode(0.5),&sections[nb_section_per_template*17].h_axnode(0.5),&sections[nb_section_per_template*17].mp_axnode(0.5),&sections[nb_section_per_template*17].inap_axnode(0.5),&sections[nb_section_per_template*17].ik_axnode(0.5),&sections[nb_section_per_template*17].ina_axnode(0.5))
+// 		// batch_save(&sections[100].v(0.5))
+// 		// batch_save(&sections[101].v(0.5))
+// 		// batch_save(&sections[102].v(0.5))
+// 		// batch_save(&sections[103].v(0.5))
+// 		// batch_save(&sections[104].v(0.5))
+// 		// batch_save(&sections[0].v(0.5))
+// 		// batch_save(&sections[210].v(0.5))
+// 		//batch_save(&sections[nb_section_per_template*18+1].v(0.5))
+//     // for (x,0) {
+//     //   batch_save(&axon.vext[0](x))
+//     // }
+//     batch_run(tstop, dt, filename, headers)
+// 	}
+// }

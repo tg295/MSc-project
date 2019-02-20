@@ -1,0 +1,1 @@
+MODOBJFILES= Nakpump.o fsin.o fsquare.o hcn.o ka.o kdifl.o kdr.o kext.o kmtype.o knatype.o leak.o nadifl.o naext.o nav17.o nav1p8.o nav1p9.o xtra.o

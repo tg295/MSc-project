@@ -1,0 +1,25 @@
+//Hodgkin-Huxley axon model
+
+create axon
+access axon
+
+axon {
+  nseg = 36 // 9mm long axon divided into 0.25mm segments
+  diam = 2	//um
+  L = 9e3 //um
+  Ra = 34.5 //Ohm-cm
+  insert hh
+  insert extracellular xraxial=1e+09 xg=1e+09 xc=0 e_extracellular=0
+}
+
+forall {
+  insert xtra
+  for (x,0) {
+    setpointer ex_xtra(x), e_extracellular(x)
+   setpointer im_xtra(x), i_membrane(x)
+  }
+}
+
+celsius = 20
+
+define_shape()

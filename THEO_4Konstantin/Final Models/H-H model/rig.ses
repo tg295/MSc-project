@@ -1,0 +1,75 @@
+{load_file("nrngui.hoc")}
+objectvar save_window_, rvp_
+objectvar scene_vector_[7]
+objectvar ocbox_, ocbox_list_, scene_, scene_list_
+{ocbox_list_ = new List()  scene_list_ = new List()}
+{pwman_place(0,0,0)}
+{
+xpanel("Extracellular Electrode Location", 0)
+xlabel("xyz coords in um")
+XE = 4500
+xvalue("x","XE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+YE = 1000
+xvalue("y","YE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+ZE = 0
+xvalue("z","ZE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+xpanel(830,463)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,50,-80,40)
+scene_vector_[2] = save_window_
+{save_window_.view(0, -80, 50, 120, 0, 126, 300.6, 200.8)}
+graphList[0].append(save_window_)
+save_window_.save_name("graphList[0].")
+save_window_.addexpr("v(.5)", 4, 1, 0.8, 0.9, 2)
+save_window_.addvar("axon.v( 0.166667 )", 2, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.v( 0.9 )", 3, 1, 0.8, 0.9, 2)
+}
+{
+xpanel("Run", 0)
+xcheckbox("Init & Run",&running_,"runbutton()")
+xpanel(318,24)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,9000,-80,40)
+scene_vector_[3] = save_window_
+{save_window_.view(0, -80, 9000, 120, 0, 462, 300.6, 200.8)}
+flush_list.append(save_window_)
+save_window_.save_name("flush_list.")
+objectvar rvp_
+rvp_ = new RangeVarPlot("v")
+axon rvp_.begin(0)
+axon rvp_.end(1)
+rvp_.origin(0)
+save_window_.addobject(rvp_, 2, 1, 0.8, 0.9)
+}
+
+//Begin Movie Run
+{
+movie_frame_dur_ = 0.005
+
+movierunpanel(0)
+ocbox_ = movierunbox
+ocbox_.map("Movie Run", 414, 450, 318.6, 150)
+}
+objref ocbox_
+//End Movie Run
+
+{
+save_window_ = new Graph(0)
+save_window_.size(0,9000,-2000,2000)
+scene_vector_[4] = save_window_
+{save_window_.view(0, -2000, 9000, 4000, 414, 126, 300.6, 200.8)}
+flush_list.append(save_window_)
+save_window_.save_name("flush_list.")
+objectvar rvp_
+rvp_ = new RangeVarPlot("e_extracellular")
+axon rvp_.begin(0)
+axon rvp_.end(1)
+rvp_.origin(0)
+save_window_.addobject(rvp_, 2, 1, 0.8, 0.9)
+}
+objectvar scene_vector_[1]
+{doNotify()}

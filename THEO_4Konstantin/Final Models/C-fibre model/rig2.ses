@@ -1,0 +1,211 @@
+{load_file("nrngui.hoc")}
+objectvar save_window_, rvp_
+objectvar scene_vector_[14]
+objectvar ocbox_, ocbox_list_, scene_, scene_list_
+{ocbox_list_ = new List()  scene_list_ = new List()}
+{pwman_place(0,0,0)}
+{
+ocbox_ = new VBox()
+ocbox_list_.prepend(ocbox_)
+ocbox_.intercept(1)
+}
+{
+ocbox_ = new HBox()
+ocbox_list_.prepend(ocbox_)
+ocbox_.intercept(1)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,9000,-80,40)
+scene_vector_[2] = save_window_
+{save_window_.view(0, -80, 9000, 120, 0, 99, 221.1, 201.155)}
+flush_list.append(save_window_)
+save_window_.save_name("flush_list.")
+save_window_.label(0.4, 0.9, "Membrane voltage", 2, 1, 0, 0, 1)
+objectvar rvp_
+rvp_ = new RangeVarPlot("v")
+axon rvp_.begin(0)
+axon rvp_.end(1)
+rvp_.origin(0)
+save_window_.addobject(rvp_, 2, 1, 0.8, 0.9)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,9000,-2000,2000)
+scene_vector_[3] = save_window_
+{save_window_.view(0, -2000, 9000, 4000, 0, 99, 221.1, 201.155)}
+flush_list.append(save_window_)
+save_window_.save_name("flush_list.")
+save_window_.label(0.4, 0.9, "Extracellular voltage", 2, 1, 0, 0, 1)
+objectvar rvp_
+rvp_ = new RangeVarPlot("e_extracellular")
+axon rvp_.begin(0)
+axon rvp_.end(1)
+rvp_.origin(0)
+save_window_.addobject(rvp_, 2, 1, 0.8, 0.9)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,200,-170,110)
+scene_vector_[4] = save_window_
+{save_window_.view(0, -170, 200, 280, 0, 99, 221.1, 201.155)}
+graphList[0].append(save_window_)
+save_window_.save_name("graphList[0].")
+save_window_.label(0.4, 0.9, "Action potential", 2, 1, 0, 0, 1)
+save_window_.addexpr("v(.5)", 4, 1, 0.8, 0.9, 2)
+save_window_.addvar("axon.v( 0.166667 )", 2, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.v( 0.9 )", 3, 1, 0.8, 0.9, 2)
+}
+{
+ocbox_ = ocbox_list_.object(0)
+ocbox_.intercept(0)
+ocbox_.map()
+}
+objref ocbox_
+{
+ocbox_ = new HBox()
+ocbox_list_.prepend(ocbox_)
+ocbox_.intercept(1)
+}
+{
+xpanel("RunControl", 0)
+xlabel("Simulation Settings")
+v_init = -65
+xvalue("Init","v_init", 1,"fcurrent()", 0, 0 )
+xbutton("Init all"," fast_init() ")
+xbutton("Run","  	run() ")
+xbutton("Stop","stoprun=1")
+t = 200
+xvalue("t","t", 2 )
+tstop = 200
+xvalue("Tstop","tstop", 1,"tstop_changed()", 0, 1 )
+dt = 0.005
+xvalue("dt","dt", 1,"setdt()", 0, 1 )
+steps_per_ms = 40
+xvalue("Points plotted/ms","steps_per_ms", 1,"setdt()", 0, 1 )
+screen_update_invl = 0.05
+xvalue("Scrn update invl","screen_update_invl", 1,"", 0, 1 )
+realtime = 13.28
+xvalue("Real Time","realtime", 0,"", 0, 1 )
+xpanel()
+}
+{
+xpanel("AC Stim Settings", 0)
+xlabel("AC Stim Settings: SINE")
+fsin.amp = 350
+xvalue("AC amplitude (mA)","fsin.amp", 1,"", 0, 0 )
+fsin.f = 100000
+xvalue("AC frequency (Hz)","fsin.f", 1,"", 0, 0 )
+fsin.del = 5
+xvalue("AC delay (ms)","fsin.del", 1,"", 0, 0 )
+dur = 30
+xvalue("AC duration (ms)","dur", 1,"", 0, 0 )
+fsin.n = 1e+006
+xvalue("AC no. of cycles","fsin.n", 1,"", 0, 0 )
+xlabel("DC Stim Settings")
+stim_amp = 15
+xvalue("DC stimulus amplitude (nA)","stim_amp", 1,"iclamps()", 0, 0 )
+stim_delay = 100
+xvalue("DC stimulus delay (ms)","stim_delay", 1,"iclamps()", 0, 0 )
+stim_dur = 0.12
+xvalue("DC stimulus duration (ms)","stim_dur", 1,"iclamps()", 0, 0 )
+xpanel()
+}
+{
+xpanel("Extracellular Electrode Location", 0)
+xlabel("AC Electrode Location (um)")
+XE = 4500
+xvalue("x","XE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+YE = 1000
+xvalue("y","YE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+ZE = 0
+xvalue("z","ZE", 1,"setelec(XE,YE,ZE)", 0, 1 )
+xlabel("Axon Geometry")
+nseg = 36
+xvalue("nseg","nseg", 1,"", 0, 0 )
+diam = 2
+xvalue("Diameter (um)","diam", 1,"", 0, 0 )
+L = 9000
+xvalue("Total length (um)","L", 1,"", 0, 0 )
+xbutton("Run and export results","export_results()")
+xbutton("Run w/ spike timing","runcount()")
+xpanel()
+}
+{
+save_window_ = new Shape(0)
+save_window_.size(-245.393,9754.57,-50593.1,50613.1)
+scene_vector_[5] = save_window_
+{save_window_.view(-245.393, -50593.1, 9999.96, 101206, 0, 99, 24.4199, 247.145)}
+}
+{
+ocbox_ = ocbox_list_.object(0)
+ocbox_.intercept(0)
+ocbox_.map()
+}
+objref ocbox_
+{
+ocbox_ = ocbox_list_.object(0)
+ocbox_.intercept(0)
+ocbox_.map("c:\nrn\bin\nrniv.exe", 0, 99, 688.5, 509.4)
+}
+objref ocbox_
+{
+save_window_ = new Graph(0)
+save_window_.size(91.8049,92.0564,-29.4592,17.6492)
+scene_vector_[9] = save_window_
+{save_window_.view(91.8049, -29.4592, 0.251495, 47.1083, 940, 24, 590.4, 260.2)}
+graphList[1].append(save_window_)
+save_window_.save_name("graphList[1].")
+save_window_.addexpr("axon.ik_NaKpump( 0.5 )", 2, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ik_hcn( 0.5 )", 3, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ik_ka( 0.5 )", 4, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ik_kdr( 0.5)", 5, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ik_km( 0.5 )", 6, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ik_knatype( 0.5 )", 8, 1, 0.8, 0.9, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(-10,200,-18,1)
+scene_vector_[10] = save_window_
+{save_window_.view(-10, -18, 210, 19, 944, 450, 585.9, 314.2)}
+graphList[1].append(save_window_)
+save_window_.save_name("graphList[1].")
+save_window_.addexpr("axon.ina_NaKpump( 0.5 )", 2, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ina_hcn( 0.5)", 3, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ina_nav1p7( 0.5 )", 4, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ina_nav1p8( 0.5 )", 5, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ina_nav1p9( 0.5 )", 6, 1, 0.8, 0.9, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(91.4876,91.8428,0.741898,0.821373)
+scene_vector_[11] = save_window_
+{save_window_.view(91.4876, 0.741898, 0.355164, 0.079475, 426, 591, 300.6, 200.8)}
+graphList[2].append(save_window_)
+save_window_.save_name("graphList[2].")
+save_window_.addexpr("axon.nf_hcn( 0.5 )", 2, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ns_hcn( 0.5 )", 3, 1, 0.8, 0.9, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(61.6001,61.6538,0.00641667,1.00058)
+scene_vector_[12] = save_window_
+{save_window_.view(61.6001, 0.00641667, 0.0536842, 0.994167, 435, 124, 300.6, 200.8)}
+graphList[2].append(save_window_)
+save_window_.save_name("graphList[2].")
+save_window_.addexpr("axon.minf_nav1p8( 0.5 )", 1, 1, 0.8, 0.9, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(91.2191,91.875,-0.0528,0.3802)
+scene_vector_[13] = save_window_
+{save_window_.view(91.2191, -0.0528, 0.655914, 0.433, 818, 556, 300.6, 200.8)}
+graphList[2].append(save_window_)
+save_window_.save_name("graphList[2].")
+save_window_.addexpr("axon.ninf_ka( 0.5 )", 7, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ninf_ka( 0.1 )", 3, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.ninf_hcn( 0.5 )", 5, 1, 0.8, 0.9, 2)
+save_window_.addexpr("axon.n_kdr( 0.5)", 4, 1, 0.8, 0.9, 2)
+}
+objectvar scene_vector_[1]
+{doNotify()}
